@@ -1,0 +1,236 @@
+
+# Nome: 
+# Atividade: Rede de distribuicao
+# Entregavel 3 - Rede de rotas
+#
+# Estruturas utilizadas:
+# - Dicionario: guarda os depositos vivos.
+# - Dicionario de dicionarios: representa as rotas do grafo direcionado.
+# - Dicionario reverso: permite localizar as rotas que chegam a um deposito.
+# - Heap (heapq): fila de prioridade para remover depositos e executar Dijkstra.
+#
+# Complexidades principais:
+# - INSERIR: O(r log n), considerando a fila de prioridade.
+# - LUCRO: O(log n) para inserir o novo valor na fila.
+# - REMOVER: O(log n) amortizado por entrada da fila, mais as rotas removidas.
+# - DIST: O((n + m) log n), com lista de adjacencia e heap.
+
+
+import sys
+import heapq
+
+
+def adicionar_rota(origem, destino, custo, rotas, reversas):
+    # Guarda a rota na direcao informada.
+    rotas[origem][destino] = custo
+
+    # Guarda tambem quem chega ao destino.
+    reversas[destino][origem] = custo
+
+
+def remover_deposito(ident, depositos, rotas, reversas):
+    # Remove todas as rotas que saem do deposito.
+    for destino in list(rotas[ident]):
+        del reversas[destino][ident]
+
+    # Remove todas as rotas que chegam ao deposito.
+    for origem in list(reversas[ident]):
+        del rotas[origem][ident]
+
+    # Remove o deposito das estruturas do grafo.
+    del rotas[ident]
+    del reversas[ident]
+
+    # Remove o deposito do registro de depositos vivos.
+    del depositos[ident]
+
+
+def calcular_distancias(origem, depositos, rotas):
+    # Dijkstra calcula os menores custos a partir da origem.
+    # Todos os custos das rotas sao positivos.
+
+    distancias = {origem: 0}
+    fila = [(0, origem)]
+
+    while fila:
+        custo_atual, atual = heapq.heappop(fila)
+
+        # Ignora uma entrada antiga da fila.
+        if custo_atual != distancias[atual]:
+            continue
+
+        # Examina todas as rotas que saem do deposito atual.
+        for vizinho, custo_rota in rotas[atual].items():
+            novo_custo = custo_atual + custo_rota
+
+            # Atualiza se encontrou um caminho mais barato.
+            if (vizinho not in distancias or
+                    novo_custo < distancias[vizinho]):
+
+                distancias[vizinho] = novo_custo
+                heapq.heappush(fila, (novo_custo, vizinho))
+
+    # Retorna os menores custos encontrados.
+    return distancias
+
+
+def main():
+    # Le a entrada inteira e separa os valores.
+    dados = sys.stdin.read().split()
+    pos = 0
+
+    # Le o numero de depositos, rotas e a tolerancia.
+    n = int(dados[pos])
+    m = int(dados[pos + 1])
+    T = int(dados[pos + 2])
+    pos += 3
+
+    # Deposito: identificador -> [x, y, lucro].
+    depositos = {}
+
+    # Rotas direcionadas: origem -> {destino: custo}.
+    rotas = {}
+
+    # Grafo reverso: destino -> {origem: custo}.
+    reversas = {}
+
+    # Fila de prioridade para os lucros.
+    fila_lucros = []
+
+    # Le os depositos iniciais.
+    for _ in range(n):
+        ident = int(dados[pos])
+        x = int(dados[pos + 1])
+        y = int(dados[pos + 2])
+        lucro = int(dados[pos + 3])
+        pos += 4
+
+        depositos[ident] = [x, y, lucro]
+        rotas[ident] = {}
+        reversas[ident] = {}
+
+        heapq.heappush(fila_lucros, (lucro, ident))
+
+    # Le as rotas iniciais.
+    for _ in range(m):
+        u = int(dados[pos])
+        v = int(dados[pos + 1])
+        c = int(dados[pos + 2])
+        pos += 3
+
+        adicionar_rota(u, v, c, rotas, reversas)
+
+    # Le a quantidade de periodos depois do primeiro.
+    P = int(dados[pos])
+    pos += 1
+
+    saidas = []
+
+    # Processa os lotes dos periodos 2 ate P + 1.
+    for periodo in range(2, P + 2):
+        q = int(dados[pos])
+        pos += 1
+
+        for _ in range(q):
+            operacao = dados[pos]
+            pos += 1
+
+            if operacao == "INSERIR":
+                ident = int(dados[pos])
+                x = int(dados[pos + 1])
+                y = int(dados[pos + 2])
+                lucro = int(dados[pos + 3])
+                r = int(dados[pos + 4])
+                pos += 5
+
+                # Cadastra o novo deposito.
+                depositos[ident] = [x, y, lucro]
+                rotas[ident] = {}
+                reversas[ident] = {}
+
+                heapq.heappush(fila_lucros, (lucro, ident))
+
+                # Le e adiciona as rotas do novo deposito.
+                for _ in range(r):
+                    u = int(dados[pos])
+                    v = int(dados[pos + 1])
+                    c = int(dados[pos + 2])
+                    pos += 3
+
+                    adicionar_rota(u, v, c, rotas, reversas)
+
+            elif operacao == "LUCRO":
+                ident = int(dados[pos])
+                novo_lucro = int(dados[pos + 1])
+                pos += 2
+
+                # Substitui o lucro, sem remover o deposito.
+                depositos[ident][2] = novo_lucro
+
+                # A entrada antiga da fila sera ignorada depois.
+                heapq.heappush(
+                    fila_lucros, (novo_lucro, ident)
+                )
+
+            elif operacao == "REMOVER":
+                quantidade = 0
+
+                # Examina os menores lucros primeiro.
+                while fila_lucros:
+                    lucro, ident = fila_lucros[0]
+
+                    # Ignora depositos que ja foram fechados.
+                    if ident not in depositos:
+                        heapq.heappop(fila_lucros)
+                        continue
+
+                    # Ignora valores antigos do lucro.
+                    if depositos[ident][2] != lucro:
+                        heapq.heappop(fila_lucros)
+                        continue
+
+                    # So fecha depositos com lucro menor que T.
+                    if lucro >= T:
+                        break
+
+                    heapq.heappop(fila_lucros)
+
+                    remover_deposito(
+                        ident, depositos, rotas, reversas
+                    )
+
+                    quantidade += 1
+
+                saidas.append(str(quantidade))
+
+            elif operacao == "DIST":
+                origem = int(dados[pos])
+                pos += 1
+
+                # Calcula os menores custos a partir da origem.
+                distancias = calcular_distancias(
+                    origem, depositos, rotas
+                )
+
+                # Imprime os custos dos outros depositos vivos
+                # em ordem crescente de identificador.
+                resultado = []
+
+                for ident in sorted(depositos):
+                    if ident == origem:
+                        continue
+
+                    if ident in distancias:
+                        resultado.append(str(distancias[ident]))
+                    else:
+                        resultado.append("-1")
+
+                # Se nao houver outros depositos, a linha fica vazia.
+                saidas.append(" ".join(resultado))
+
+    # Imprime somente as respostas das operacoes.
+    print("\n".join(saidas))
+
+
+if __name__ == "__main__":
+    main()
