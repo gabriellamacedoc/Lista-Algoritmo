@@ -1,0 +1,217 @@
+
+# Nome: 
+# Atividade: Rede de distribuicao
+# Entregavel 1 - Historico de periodos
+#
+# Estruturas utilizadas:
+# - Dicionario: guarda o lucro de cada deposito pelo seu identificador.
+# - Lista historico: guarda o lucro total de cada periodo.
+# - Lista pilha: guarda os lucros positivos que ainda nao foram compensados.
+# - Listas melhor e atual: guardam os dados do melhor intervalo e do
+#   intervalo de maior soma que termina no periodo atual.
+
+import sys
+
+
+# Registra o lucro de um periodo, atualiza o melhor intervalo
+# e atualiza a pilha de prosperidade.
+# O historico guarda os lucros ja registrados.
+# A funcao retorna a nova soma dos residuos da pilha.
+#
+# Complexidade: O(1) amortizado por periodo.
+# Cada lucro entra uma vez no historico e na pilha, podendo ser
+# removido da pilha no maximo uma vez.
+
+def registrar_periodo(lucro, numero, historico, melhor,
+                      atual, pilha, soma_pilha):
+
+    historico.append(lucro)
+
+    # Atualiza o melhor intervalo consecutivo.
+    if numero == 1:
+        melhor[0] = lucro
+        melhor[1] = 1
+        melhor[2] = 1
+
+        atual[0] = lucro
+        atual[1] = 1
+
+    else:
+        # Verifica se e melhor continuar o intervalo anterior
+        # ou comecar um novo intervalo neste periodo.
+        if atual[0] + lucro >= lucro:
+            atual[0] = atual[0] + lucro
+        else:
+            atual[0] = lucro
+            atual[1] = numero
+
+        # Atualiza o melhor intervalo.
+        # Em caso de empate, mantem o intervalo mais antigo.
+        if atual[0] > melhor[0]:
+            melhor[0] = atual[0]
+            melhor[1] = atual[1]
+            melhor[2] = numero
+
+        elif atual[0] == melhor[0]:
+            if atual[1] < melhor[1]:
+                melhor[0] = atual[0]
+                melhor[1] = atual[1]
+                melhor[2] = numero
+
+            elif atual[1] == melhor[1] and numero < melhor[2]:
+                melhor[0] = atual[0]
+                melhor[1] = atual[1]
+                melhor[2] = numero
+
+    # Atualiza a pilha de prosperidade.
+    if lucro > 0:
+        pilha.append([numero, lucro])
+        soma_pilha += lucro
+
+    elif lucro < 0:
+        prejuizo = -lucro
+
+        # Usa os lucros mais recentes para compensar o prejuizo.
+        while prejuizo > 0 and len(pilha) > 0:
+            topo = pilha[-1]
+            residuo = topo[1]
+
+            if residuo <= prejuizo:
+                # O lucro do topo foi totalmente consumido.
+                prejuizo -= residuo
+                soma_pilha -= residuo
+                pilha.pop()
+
+            else:
+                # O lucro do topo foi parcialmente consumido.
+                topo[1] -= prejuizo
+                soma_pilha -= prejuizo
+                prejuizo = 0
+
+    return soma_pilha
+
+
+def main():
+    # Le toda a entrada e separa os valores por espacos e linhas.
+    dados = sys.stdin.read().split()
+    pos = 0
+
+    # Le o numero de depositos, rotas e a tolerancia.
+    n = int(dados[pos])
+    m = int(dados[pos + 1])
+    T = int(dados[pos + 2])
+    pos += 3
+
+    # Guarda os depositos pelo identificador.
+    # Neste entregavel, precisamos apenas do lucro.
+    depositos = {}
+    lucro_total = 0
+
+    # Le os depositos iniciais.
+    for _ in range(n):
+        ident = int(dados[pos])
+        x = int(dados[pos + 1])
+        y = int(dados[pos + 2])
+        lucro = int(dados[pos + 3])
+        pos += 4
+
+        depositos[ident] = lucro
+        lucro_total += lucro
+
+    # Le as rotas iniciais.
+    # Elas precisam ser consumidas, mas nao sao utilizadas no E1.
+    for _ in range(m):
+        u = int(dados[pos])
+        v = int(dados[pos + 1])
+        c = int(dados[pos + 2])
+        pos += 3
+
+    # Le a quantidade de periodos depois do periodo 1.
+    P = int(dados[pos])
+    pos += 1
+
+    # Estruturas do historico e da pilha de prosperidade.
+    historico = []
+    melhor = []
+    atual = []
+    pilha = []
+    soma_pilha = 0
+
+    # Registra o periodo 1, calculado com a rede inicial.
+    soma_pilha = registrar_periodo(
+        lucro_total, 1, historico, melhor,
+        atual, pilha, soma_pilha
+    )
+
+    # Processa os periodos seguintes.
+    for periodo in range(2, P + 2):
+
+        # Cada periodo tem sua propria quantidade de operacoes.
+        q = int(dados[pos])
+        pos += 1
+
+        for _ in range(q):
+            operacao = dados[pos]
+            pos += 1
+
+            if operacao == "INSERIR":
+                ident = int(dados[pos])
+                x = int(dados[pos + 1])
+                y = int(dados[pos + 2])
+                lucro = int(dados[pos + 3])
+                r = int(dados[pos + 4])
+                pos += 5
+
+                # Cadastra o deposito e atualiza o lucro total.
+                depositos[ident] = lucro
+                lucro_total += lucro
+
+                # Le as rotas do novo deposito.
+                for _ in range(r):
+                    u = int(dados[pos])
+                    v = int(dados[pos + 1])
+                    c = int(dados[pos + 2])
+                    pos += 3
+
+            elif operacao == "LUCRO":
+                ident = int(dados[pos])
+                novo_lucro = int(dados[pos + 1])
+                pos += 2
+
+                # Substitui o lucro anterior pelo novo valor.
+                lucro_total -= depositos[ident]
+                depositos[ident] = novo_lucro
+                lucro_total += novo_lucro
+
+            elif operacao == "MELHOR":
+                # Consulta o melhor intervalo dos periodos registrados.
+                print(melhor[1], melhor[2], melhor[0])
+
+            elif operacao == "PROSPERIDADE":
+                # Consulta a pilha apos o ultimo periodo registrado.
+                if len(pilha) == 0:
+                    print(0)
+                else:
+                    altura = len(pilha)
+                    base = pilha[0][0]
+                    topo_periodo = pilha[-1][0]
+                    topo_residuo = pilha[-1][1]
+
+                    print(
+                        altura,
+                        base,
+                        soma_pilha,
+                        topo_periodo,
+                        topo_residuo
+                    )
+
+        # Ao terminar o lote, registra o lucro do periodo.
+        # Todas as operacoes desse lote ja foram executadas.
+        soma_pilha = registrar_periodo(
+            lucro_total, periodo, historico, melhor,
+            atual, pilha, soma_pilha
+        )
+
+
+if __name__ == "__main__":
+    main()
