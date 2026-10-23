@@ -1,5 +1,5 @@
 """
-Nome: <SEU NOME AQUI>
+Nome: Ana Clara de Lira Florentino e Silva, Júlia Lavínia Rodrigues Pedrosa de Carvalho e Maria Gabriella Macedo Cardoso
 Algoritmos e Estruturas de Dados - Rede de distribuicao
 Entregavel 2: fechamento e proximidade
 
